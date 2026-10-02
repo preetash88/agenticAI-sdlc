@@ -1,0 +1,24 @@
+{
+  "tests": [
+    {
+      "test_id": "0d62dfb074724ee74bea44fd4c97b6c665c8f7062a4141835e17a123e7efd3d1",
+      "scenario": {
+        "application": "saucedemo",
+        "feature": "login",
+        "scenario": "successful_login",
+        "expected": "products_page_displayed"
+      },
+      "status": "CREATED"
+    },
+    {
+      "test_id": "85a93f7be9950da9f6d385f04d330f877fd24fc37b84035be914cac0aafffa99",
+      "scenario": {
+        "application": "saucedemo",
+        "feature": "login",
+        "scenario": "invalid_login",
+        "expected": "error_message_displayed"
+      },
+      "status": "CREATED"
+    }
+  ]
+}
