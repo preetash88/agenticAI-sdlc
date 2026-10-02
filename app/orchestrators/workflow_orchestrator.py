@@ -90,11 +90,21 @@ class WorkflowOrchestrator:
         return workflow.compile(checkpointer=self.checkpointer)
 
     async def _router_node(self, state: QAState) -> dict[str, Any]:
+
+        print("\n🧭 Router started")
+
         decision: RoutingDecision = await self.router.route(
             user_prompt=state["user_prompt"],
             current_agent=state.get("current_agent"),
             previous_results=state.get("visited_agents", []),
         )
+
+        print("\n🧭 ROUTER DECISION")
+        print(f"   Current agent: {state.get('current_agent')}")
+        print(f"   Previous agents: {state.get('visited_agents', [])}")
+        print(f"   Next agent: {decision.next_agent}")
+        print(f"   Done: {decision.done}")
+        print(f"   Reason: {decision.reason}")
 
         return {
             "routing_decision": decision.model_dump(),
@@ -108,7 +118,9 @@ class WorkflowOrchestrator:
             return "end"
 
         if not decision.next_agent:
-            return "end"
+            raise ValueError(
+                "Router returned no next agent while done=False."
+            )
 
         if decision.next_agent not in self.agents:
             raise ValueError(
@@ -122,7 +134,12 @@ class WorkflowOrchestrator:
         async def agent_node(state: QAState) -> dict[str, Any]:
             agent = self.agents[agent_name]
 
-            result = await agent.run(state["user_prompt"])
+            agent_prompt = self._build_agent_prompt(
+                agent_name=agent_name,
+                state=state,
+            )
+
+            result = await agent.run(agent_prompt)
 
             visited_agents = [
                 *state.get("visited_agents", []),
@@ -150,12 +167,37 @@ class WorkflowOrchestrator:
                         "jira_summary": jira_issue.get("summary", ""),
                         "jira_description": jira_issue.get("description", ""),
                         "jira_status": jira_issue.get("status", ""),
-                        "jira_raw_result": jira_issue,
+                        "jira_raw_response": jira_issue,
                     })
 
-                return result_state
+            print("\n📦 AGENT STATE UPDATE")
+            print(f"   Agent: {agent_name}")
+            print(f"   Current agent: {result_state['current_agent']}")
+            print(f"   Visited agents: {result_state['visited_agents']}")
+            return result_state
 
         return agent_node
+
+    def _build_agent_prompt(self, *, agent_name: str, state: QAState):
+        prompt = f"""
+        Original user request:
+        {state["user_prompt"]} 
+        """
+
+        if agent_name == "strategy_agent":
+            prompt += f"""
+            Jira issue created from the request:
+            
+            Issue Key: {state.get("jira_issue_key", "")}
+            Project: {state.get("jira_project", "")}
+            Summary: {state.get("jira_summary", "")}
+            Description: {state.get("jira_description", "")}
+            Status: {state.get("jira_status", "")}
+            
+            Your task:
+            Create the QA test strategy for this Jira feature.
+            """
+        return prompt
 
     # ============================================================
     # PREVIEW NODE

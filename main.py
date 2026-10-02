@@ -1,7 +1,9 @@
 import asyncio
 
+from app.agents.entry_agent import EntryAgent
 from app.agents.jira_agent import JiraAgent
 from app.agents.router_agent import RouterAgent
+from app.agents.strategy_agent import StrategyAgent
 from app.mcp.client import MCPClient, jira_mcp_config
 from app.orchestrators.workflow_orchestrator import WorkflowOrchestrator
 from app.tools.test_data import generate_test_data
@@ -9,6 +11,8 @@ from app.tools.validation import validate_project_key
 
 
 async def main():
+    entry_agent = EntryAgent()
+
     mcp_client = MCPClient(
         jira_mcp_config()
     )
@@ -43,10 +47,62 @@ async def main():
             custom_tools=custom_tools,
             mcp_tools=mcp_tools,
         )
+        strategy_agent = StrategyAgent(
+            custom_tools=[],
+            mcp_tools=[],
+        )
 
         agents = {
             "jira_agent": jira_agent,
+            "strategy_agent": strategy_agent,
         }
+
+        # ---------------------------------------
+        # User request
+        # ---------------------------------------
+
+        # user_prompt = """
+        # Create a Jira issue for the Login feature.
+        #
+        # Project: QA
+        #
+        # Description:
+        # Verify that users can log in successfully using valid credentials.
+        #
+        # Workflow:
+        # 1. Create the Jira issue.
+        # 2. Get the Jira issue reviewed.
+        # 3. Wait for human approval.
+        # 4. After approval, create a QA test strategy for this feature.
+        # """
+
+        user_prompt = """
+               Who is Doctor Doom?
+               """
+
+        thread_id = "qa-run-001"
+
+        # ---------------------------------------
+        # RUN WORKFLOW
+        # ---------------------------------------
+
+        decision = await entry_agent.classify(
+            user_prompt=user_prompt,
+        )
+
+        print("\n🧭 ENTRY DECISION")
+        print(f"   Requires agents: {decision.require_agents}")
+        print(f"   Reason: {decision.reason}")
+
+        if not decision.require_agents:
+            print("\n🤖 Direct response:\n")
+
+            response = await entry_agent.answer(
+                user_prompt
+            )
+            print(response)
+
+            return
 
         # ---------------------------------------
         # Router
@@ -62,27 +118,6 @@ async def main():
             agents=agents,
             router=router,
         )
-
-        # ---------------------------------------
-        # User request
-        # ---------------------------------------
-
-        user_prompt = """
-Create a Jira issue for the Login feature.
-
-Project: QA
-
-Description:
-Verify that users can log in successfully using valid credentials.
-"""
-
-        thread_id = "qa-run-001"
-
-        # ---------------------------------------
-        # RUN WORKFLOW
-        # ---------------------------------------
-
-        print("\n🚀 Starting workflow\n")
 
         result = await workflow.run(
             user_prompt=user_prompt,

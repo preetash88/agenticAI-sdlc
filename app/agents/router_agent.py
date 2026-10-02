@@ -51,6 +51,18 @@ class RouterAgent:
         
         Previously executed agents:
         {previous_results}
+        
+        Routing rules:
+        - Read the complete user request before deciding.
+        - Select the next agent based on the requested workflow.
+        - An agent should not be selected again if its required work is already completed.
+        - If jira_agent has not run and the user requested Jira creation, select jira_agent.
+        - If jira_agent has completed and the user requested a QA strategy, select strategy_agent.
+        - If the user requested a strategy directly without Jira, select strategy_agent.
+        - Apply the same reasoning to other available agents.
+        - Do not perform the requested work yourself.
+        - If more requested work remains, select the appropriate next agent and set done=false.
+        - Set done=true only when all requested agent work has been completed.
 
         """
 

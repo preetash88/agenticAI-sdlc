@@ -139,7 +139,42 @@
       "summary": "Login",
       "description": "Verify that users can log in successfully using valid credentials.",
       "status": "OPEN"
+    },
+    {
+      "key": "QA-21",
+      "project": "QA",
+      "summary": "Login",
+      "description": "Verify that users can log in successfully using valid credentials.",
+      "status": "OPEN"
+    },
+    {
+      "key": "QA-22",
+      "project": "QA",
+      "summary": "Login",
+      "description": "Verify that users can log in successfully using valid credentials.",
+      "status": "OPEN"
+    },
+    {
+      "key": "QA-23",
+      "project": "QA",
+      "summary": "Login",
+      "description": "Verify that users can log in successfully using valid credentials.",
+      "status": "OPEN"
+    },
+    {
+      "key": "QA-24",
+      "project": "QA",
+      "summary": "Login",
+      "description": "Verify that users can log in successfully using valid credentials.",
+      "status": "OPEN"
+    },
+    {
+      "key": "QA-25",
+      "project": "QA",
+      "summary": "Login",
+      "description": "Verify that users can log in successfully using valid credentials.",
+      "status": "OPEN"
     }
   ],
-  "next_issue_number": 21
+  "next_issue_number": 26
 }
