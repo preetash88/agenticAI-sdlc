@@ -1,42 +1,30 @@
+import asyncio
 import hashlib
 import json
-from pathlib import Path
 from typing import Any
+
+import redis.asyncio as redis_async
 
 from app.schemas.cache import CacheKeyInput, PromptCacheStore, CacheEntry
 
 
 class PromptCache:
     """
-    Persistent application-level cache for deterministic LLM responses.
+    Redis-backed application-level cache for LLM responses.
     """
 
-    def __init__(self, cache_path: str = "app/cache/prompt_cache.json"):
-        self.cache_path = Path(cache_path)
-        self.cache_path.parent.mkdir(parents=True, exist_ok=True)
-
-        if not self.cache_path.exists():
-            self._write(PromptCacheStore())
-
-    def _read(self) -> PromptCacheStore:
-        try:
-            data = json.loads(
-                self.cache_path.read_text(encoding="utf-8")
-            )
-            return PromptCacheStore.model_validate(data)
-
-        except (json.JSONDecodeError, FileNotFoundError):
-            return PromptCacheStore()
-
-    def _write(self, store: PromptCacheStore) -> None:
-        temp_path = self.cache_path.with_suffix(".tmp")
-
-        temp_path.write_text(
-            json.dumps(store.model_dump(), indent=2),
-            encoding="utf-8",
+    def __init__(
+            self,
+            redis_url: str = "redis://localhost:6379/0",
+            namespace: str = "agentic-qa:prompt",
+            default_ttl: int = 86400
+    ):
+        self.redis = redis_async.Redis.from_url(
+            url=redis_url,
+            decode_responses=True,
         )
-
-        temp_path.replace(self.cache_path)
+        self.namespace = namespace
+        self.default_ttl = default_ttl
 
     @staticmethod
     def create_cache_key(
@@ -51,19 +39,27 @@ class PromptCache:
 
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
-    def get(self, cache_key: str) -> CacheEntry | None:
-        store = self._read()
+    def _build_key(self, cache_key: str) -> str:
+        return f"{self.namespace}.{cache_key}"
 
-        return store.entries.get(cache_key)
+    async def get(self, cache_key: str) -> CacheEntry | None:
+        key = self._build_key(cache_key)
 
-    def set(
+        value = await self.redis.get(key)
+
+        if value is None:
+            return None
+
+        return CacheEntry.model_validate_json(value)
+
+    async def set(
             self,
             *,
             cache_key: str,
             response: str,
             metadata: dict[str, Any] | None = None,
+            ttl: int | None = None,
     ) -> CacheEntry:
-        store: PromptCacheStore = self._read()
 
         entry = CacheEntry(
             cache_key=cache_key,
@@ -71,65 +67,103 @@ class PromptCache:
             metadata=metadata or {},
         )
 
-        store.entries[cache_key] = entry
+        key = self._build_key(cache_key)
 
-        self._write(store)
+        await self.redis.set(
+            key,
+            entry.model_dump_json(),
+            ex=ttl or self.default_ttl,
+
+        )
 
         return entry
 
+    async def delete(self, cache_key: str) -> bool:
+        key = self._build_key(cache_key)
+        deleted = await self.redis.delete(key)
+        return deleted > 0
 
-if __name__ == "__main__":
+    async def clear(self) -> None:
+        """
+                Clear only keys belonging to this cache namespace.
+                """
+        pattern = f"{self.namespace}:*"
+
+        keys = []
+
+        async for key in self.redis.scan_iter(match=pattern):
+            keys.append(key)
+
+        if keys:
+            await self.redis.delete(*keys)
+
+    async def ping(self) -> bool:
+        return await self.redis.ping()
+
+    async def close(self) -> None:
+        await self.redis.aclose()
+
+
+async def main():
     cache = PromptCache()
 
-    model = "qwen3:8b"
+    print("\n🧠 REDIS PROMPT CACHE TEST\n")
 
-    system_prompt = """
-    You are a QA test planner.
-    """
+    # Verify Redis connection
+    connected = await cache.ping()
 
-    user_prompt = """
-    Create a test plan for SauceDemo login.
-    """
+    if not connected:
+        print("❌ Redis connection failed")
+        return
 
-    cache_key = cache.create_cache_key(
-        cache_input=CacheKeyInput(
-            model=model,
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            temperature=0.0
-        )
+    print("✅ Redis connection successful")
+
+    cache_input = CacheKeyInput(
+        cache_version="v1",
+        model="qwen3:8b",
+        system_prompt="You are a QA test planner.",
+        user_prompt="Create a test plan for SauceDemo login.",
+        temperature=0,
     )
 
-    print("\n🧠 PROMPT CACHE TEST\n")
+    cache_key = cache.create_cache_key(cache_input=cache_input)
 
-    cached = cache.get(cache_key)
+    print(f"\n🔑 Cache key:")
+    print(cache_key)
+
+    cached = await cache.get(cache_key)
 
     if cached is None:
-        print("❌ Cache MISS")
 
-        fake_llm_response = """
-        Test Plan:
-        1. Open SauceDemo.
-        2. Enter valid username.
-        3. Enter valid password.
-        4. Click Login.
-        5. Verify Products page.
-        """
+        print("\n❌ Cache MISS")
 
-        cache.set(
+        response = """
+    Test Plan:
+    1. Open SauceDemo.
+    2. Enter valid username.
+    3. Enter valid password.
+    4. Click Login.
+    5. Verify Products page.
+    """
+
+        await cache.set(
             cache_key=cache_key,
-            response=fake_llm_response,
+            response=response,
             metadata={
                 "agent": "planner",
-                "model": model,
+                "model": "qwen3:8b",
             },
         )
 
-        print("💾 Response stored in cache.")
+        print("💾 Response stored in Redis")
 
     else:
-        print("✅ Cache HIT")
-        print("\nCached response:")
-        print(cached)
 
-    print(f"\nCache key: {cache_key}")
+        print("\n✅ Cache HIT")
+        print("\nCached response:")
+        print(cached.response)
+
+    await cache.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
