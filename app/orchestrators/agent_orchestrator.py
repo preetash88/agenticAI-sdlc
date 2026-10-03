@@ -3,7 +3,9 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 
+from app.caching.prompt_cache import PromptCache
 from app.schemas.agent import AgentResult
+from app.schemas.cache import CacheKeyInput, CacheEntry
 from app.schemas.tools import ToolCallResult
 from app.utils.agent_console import AgentConsole
 
@@ -36,6 +38,8 @@ class AgentOrchestrator:
             model: str = "qwen3:8b",
             temperature: float = 0,
             console: AgentConsole | None = None,
+            prompt_cache: PromptCache | None = None,
+            enable_cache: bool = False,
     ):
         self.agent_name = agent_name
         self.custom_tools = custom_tools
@@ -47,8 +51,43 @@ class AgentOrchestrator:
         self.llm_with_tools = self.llm.bind_tools(self.tools)
         self.system_prompt = system_prompt
         self.console = console or AgentConsole()
+        self.prompt_cache = prompt_cache
+        self.enable_cache = enable_cache
+        self.model = model
+        self.temperature = temperature
 
     async def run(self, user_prompt: str) -> AgentResult:
+
+        cache_key = None
+
+        if self.enable_cache and self.prompt_cache:
+            cache_input = CacheKeyInput(
+                cache_version="v1",
+                model=self.model,
+                system_prompt=self.system_prompt,
+                user_prompt=user_prompt,
+                temperature=self.temperature,
+            )
+
+            cache_key = self.prompt_cache.create_cache_key(cache_input=cache_input)
+
+            cached: CacheEntry | None = await self.prompt_cache.get(cache_key)
+
+            if cached:
+                self.console.log("\n⚡ PROMPT CACHE HIT")
+                self.console.log(
+                    f"   Agent: {self.agent_name}"
+                )
+
+                return AgentResult(
+                    agent_name=self.agent_name,
+                    response=cached.response,
+                    tool_results=[],
+                    success=True,
+                )
+
+            self.console.log("\n💾 PROMPT CACHE MISS")
+
         messages = [
             # ("system", self.system_prompt),
             SystemMessage(content=self.system_prompt),
@@ -76,6 +115,19 @@ class AgentOrchestrator:
                     f"   Tool results: {len(tool_results)}"
                 )
 
+                if self.enable_cache and self.prompt_cache and cache_key and not tool_results:
+                    await self.prompt_cache.set(
+                        cache_key=cache_key,
+                        response=response.content,
+                        metadata={
+                            "agent": self.agent_name,
+                            "model": self.model,
+                        }
+
+                    )
+
+                    self.console.log("\n💾 LLM response cached")
+                    
                 return AgentResult(
                     agent_name=self.agent_name,
                     response=response.content,

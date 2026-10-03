@@ -8,6 +8,7 @@ class CacheStatus(str, Enum):
     MISS = "MISS"
 
 class CacheKeyInput(BaseModel):
+    cache_version:str
     model: str
     system_prompt: str
     user_prompt: str
