@@ -19,7 +19,7 @@ class MCPClient:
             self.adapter = None
 
 
-def jira_mcp_config():
+def mcp_config():
     return {
         "mcpServers": {
             "jira": {
@@ -31,6 +31,14 @@ def jira_mcp_config():
                     "-m",
                     "app.mcp.jira_server"
                 ]
+            },
+            "playwright": {
+                "transport": "stdio",
+                "command": "npx",
+                "args": [
+                    "@playwright/mcp"
+                ],
             }
+
         }
     }

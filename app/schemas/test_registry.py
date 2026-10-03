@@ -17,9 +17,11 @@ class TestScenario(BaseModel):
 
 class TestRecord(BaseModel):
     test_id: str
+    test_case_id: str
     scenario: TestScenario
     status: TestStatus
 
 
 class TestRegistryStore(BaseModel):
     tests: list[TestRecord] = Field(default_factory=list)
+    next_case_number: int = 1

@@ -64,21 +64,28 @@ class TestRegistry:
     def register_test(self, scenario: TestScenario) -> TestRecord:
         test_id: str = self.create_test_id(scenario)
 
-        existing = self.find_test(test_id)
+        store = self._read()
 
-        if existing:
-            existing.status = TestStatus.EXISTING
-            return existing
+        for test in store.tests:
+            if test.test_id == test_id:
+                test.status = TestStatus.CREATED
+                return test
+
+        feature = scenario.feature.upper().replace(" ", "-")
+        test_case_id = f"TC-{feature}-{store.next_case_number:03d}"
 
         test_record = TestRecord(
             test_id=test_id,
+            test_case_id=test_case_id,
             status=TestStatus.CREATED,
             scenario=scenario,
         )
 
-        store = self._read()
         store.tests.append(test_record)
+        store.next_case_number += 1
+
         self._write(store)
+
         return test_record
 
 
