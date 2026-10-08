@@ -1,5 +1,6 @@
 {
   "devDependencies": {
-    "@playwright/mcp": "^0.0.83"
+    "@playwright/mcp": "^0.0.83",
+    "promptfoo": "^0.124.0"
   }
 }
