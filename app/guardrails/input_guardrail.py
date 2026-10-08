@@ -12,6 +12,7 @@ class GuardrailResult:
 class InputGuardrail:
     BLOCKED_PATTERNS = [
         r"\bhow to make a bomb\b",
+        r"\bhow to create .*bomb\b",
         r"\bhow to build a weapon\b",
         r"\bkill someone\b",
         r"\bmake an explosive\b",
