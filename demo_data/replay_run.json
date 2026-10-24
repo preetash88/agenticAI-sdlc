@@ -1,0 +1,423 @@
+{
+  "_note": "Hand-authored sample shaped exactly like real agent output (validated against the repo's Pydantic schemas). Replace it by recording a live run.",
+  "prompt": "Analyze DEMO-101 and create a QA test strategy for it.",
+  "stages": [
+    {
+      "id": "guardrail",
+      "label": "Input guardrail"
+    },
+    {
+      "id": "entry",
+      "label": "Entry decision"
+    },
+    {
+      "id": "jira",
+      "label": "Jira (MCP)"
+    },
+    {
+      "id": "analysis",
+      "label": "Analysis agent"
+    },
+    {
+      "id": "review",
+      "label": "Human review"
+    },
+    {
+      "id": "strategy",
+      "label": "Strategy agent"
+    },
+    {
+      "id": "testplan",
+      "label": "Playwright planner"
+    }
+  ],
+  "steps": [
+    {
+      "delay": 0.7,
+      "stage": "entry",
+      "state": "active",
+      "title": "Deciding whether agents are needed"
+    },
+    {
+      "delay": 1.4,
+      "stage": "entry",
+      "state": "done",
+      "title": "Needs the QA agents",
+      "detail": {
+        "require_agents": true,
+        "intent": "Analyse a Jira issue and draft a QA test strategy",
+        "reason": "The request asks for a QA workflow, not a general answer."
+      }
+    },
+    {
+      "delay": 0.5,
+      "stage": "jira",
+      "state": "active",
+      "title": "Fetching the issue through the Jira MCP server"
+    },
+    {
+      "delay": 1.2,
+      "stage": "jira",
+      "state": "done",
+      "title": "Fetched DEMO-101",
+      "detail": {
+        "key": "DEMO-101",
+        "project": "DEMO",
+        "summary": "Add successful login functionality",
+        "description": "Users should be able to log into the web application using valid credentials.",
+        "status": "OPEN"
+      },
+      "results": {
+        "jira_issue": {
+          "key": "DEMO-101",
+          "project": "DEMO",
+          "summary": "Add successful login functionality",
+          "description": "Users should be able to log into the web application using valid credentials.",
+          "status": "OPEN"
+        }
+      }
+    },
+    {
+      "delay": 0.5,
+      "stage": "analysis",
+      "state": "active",
+      "title": "Analysing the requirement"
+    },
+    {
+      "delay": 3.4,
+      "stage": "analysis",
+      "state": "done",
+      "title": "Analysis ready",
+      "detail": {
+        "status": "READY",
+        "requirements": 4,
+        "risks": 3
+      },
+      "results": {
+        "analysis": {
+          "status": "READY",
+          "issue": {
+            "key": "DEMO-101",
+            "url": "https://jira.example.com/browse/DEMO-101",
+            "title": "Add successful login functionality",
+            "type": "Story",
+            "priority": "High"
+          },
+          "business_objective": "Let registered users reach the product catalogue by signing in with valid credentials.",
+          "requirements": [
+            {
+              "id": "REQ-DEMO-101-1",
+              "description": "The login page accepts a username.",
+              "source": "Acceptance criterion 1"
+            },
+            {
+              "id": "REQ-DEMO-101-2",
+              "description": "The login page accepts a password.",
+              "source": "Acceptance criterion 2"
+            },
+            {
+              "id": "REQ-DEMO-101-3",
+              "description": "A Login action submits the entered credentials for authentication.",
+              "source": "Acceptance criterion 3"
+            },
+            {
+              "id": "REQ-DEMO-101-4",
+              "description": "Successful authentication lands the user on the Products page.",
+              "source": "Acceptance criterion 4"
+            }
+          ],
+          "acceptance_criteria": [
+            {
+              "id": "AC-DEMO-101-1",
+              "description": "User can enter username.",
+              "source": "Jira description"
+            },
+            {
+              "id": "AC-DEMO-101-2",
+              "description": "User can enter password.",
+              "source": "Jira description"
+            },
+            {
+              "id": "AC-DEMO-101-3",
+              "description": "User can click Login.",
+              "source": "Jira description"
+            },
+            {
+              "id": "AC-DEMO-101-4",
+              "description": "Successful authentication displays the Products page.",
+              "source": "Jira description"
+            }
+          ],
+          "dependencies": [
+            {
+              "name": "Authentication service",
+              "type": "service",
+              "description": "Validates credentials and starts the session."
+            },
+            {
+              "name": "Test user accounts",
+              "type": "test_data",
+              "description": "At least one active account with known credentials."
+            },
+            {
+              "name": "Web application environment",
+              "type": "environment",
+              "description": "A reachable deployment that serves the login and Products pages."
+            }
+          ],
+          "risks": [
+            {
+              "description": "Login gates every other user journey, so a regression here blocks all downstream testing.",
+              "severity": "HIGH"
+            },
+            {
+              "description": "Test credentials may leak if they are stored in plain text in the automation repo.",
+              "severity": "MEDIUM"
+            },
+            {
+              "description": "No acceptance criteria cover failed logins, so negative behaviour is untested by default.",
+              "severity": "MEDIUM"
+            }
+          ],
+          "ambiguities": [
+            {
+              "description": "'Valid credentials' is not defined: account types, locked users and MFA are not mentioned.",
+              "impact": "Test data and the happy-path scope could change if MFA or multiple roles apply.",
+              "requires_human_input": true
+            },
+            {
+              "description": "The expected behaviour for invalid credentials is not specified.",
+              "impact": "Negative tests would rely on assumed error messages.",
+              "requires_human_input": false
+            }
+          ],
+          "testing_scope": [
+            {
+              "type": "FUNCTIONAL",
+              "reason": "Core behaviour is defined by four acceptance criteria.",
+              "priority": "P0"
+            },
+            {
+              "type": "UI",
+              "reason": "All criteria are exercised through the browser login page.",
+              "priority": "P0"
+            },
+            {
+              "type": "SMOKE",
+              "reason": "Login is the entry point for every journey.",
+              "priority": "P0"
+            },
+            {
+              "type": "REGRESSION",
+              "reason": "A broken login invalidates the rest of the suite.",
+              "priority": "P1"
+            },
+            {
+              "type": "NEGATIVE",
+              "reason": "Invalid-credential behaviour is a known gap in the ticket.",
+              "priority": "P1"
+            },
+            {
+              "type": "SECURITY",
+              "reason": "The feature handles credentials.",
+              "priority": "P2"
+            }
+          ],
+          "automation_assessment": {
+            "status": "AUTOMATION_READY",
+            "reason": "The happy path is deterministic and every step is exposed in the browser.",
+            "automation_candidates": [
+              "Successful login with a valid account",
+              "Products page visible after login"
+            ],
+            "automation_constraints": [
+              "Needs a stable, non-MFA test account",
+              "Negative scenarios wait on confirmed error messages"
+            ]
+          },
+          "required_agents": [
+            {
+              "agent": "playwright",
+              "reason": "All criteria are browser-driven.",
+              "priority": "P0"
+            },
+            {
+              "agent": "strategy",
+              "reason": "Several testing types apply and one ambiguity needs a plan.",
+              "priority": "P1"
+            },
+            {
+              "agent": "security",
+              "reason": "Credential handling warrants a review.",
+              "priority": "P2"
+            }
+          ],
+          "assumptions": [
+            {
+              "description": "Test accounts are pre-provisioned and active.",
+              "safe_to_use": true
+            },
+            {
+              "description": "The test environment has MFA disabled.",
+              "safe_to_use": false
+            }
+          ],
+          "analysis_summary": "A small, well-bounded login story. The happy path is ready to automate now. Failed-login behaviour and MFA need a decision before negative tests can be written."
+        }
+      }
+    },
+    {
+      "kind": "gate",
+      "delay": 0.4,
+      "stage": "review",
+      "review": {
+        "agent": "analysis_agent",
+        "message": "Review the analysis before the strategy agent runs.",
+        "summary": {
+          "status": "READY",
+          "requirements": 4,
+          "risks": 3,
+          "open_ambiguities": 1,
+          "automation": "AUTOMATION_READY"
+        }
+      }
+    },
+    {
+      "delay": 0.4,
+      "stage": "review",
+      "state": "done",
+      "title": "Approved by reviewer"
+    },
+    {
+      "delay": 0.5,
+      "stage": "strategy",
+      "state": "active",
+      "title": "Drafting the test strategy"
+    },
+    {
+      "delay": 2.8,
+      "stage": "strategy",
+      "state": "done",
+      "title": "Strategy ready",
+      "results": {
+        "strategy": {
+          "strategy_summary": "Automate the login happy path in the browser first, run it as a smoke and regression check, and hold negative scenarios until the error behaviour is confirmed.",
+          "testing_types": [
+            {
+              "type": "Functional",
+              "reason": "Covers all four acceptance criteria.",
+              "priority": "P0"
+            },
+            {
+              "type": "UI",
+              "reason": "Every step happens on the login page.",
+              "priority": "P0"
+            },
+            {
+              "type": "Smoke",
+              "reason": "Fast gate before wider suites run.",
+              "priority": "P0"
+            },
+            {
+              "type": "Negative",
+              "reason": "Invalid-credential handling is unspecified.",
+              "priority": "P1"
+            }
+          ],
+          "functional_scope": [
+            "Enter username and password",
+            "Submit with Login",
+            "Land on the Products page"
+          ],
+          "automation_scope": [
+            "Valid-credential login",
+            "Products page assertion",
+            "Smoke and regression tagging"
+          ],
+          "manual_scope": [
+            "Exploratory pass on error messages once they are defined",
+            "Visual check of the login page"
+          ],
+          "environment_requirements": [
+            "Reachable web application environment",
+            "Chromium via Playwright"
+          ],
+          "test_data_requirements": [
+            "One active, non-MFA user with known credentials held in a secret store"
+          ],
+          "dependencies": [
+            "Authentication service",
+            "Test user accounts"
+          ],
+          "risks": [
+            "Regression in login blocks all journeys",
+            "Credential leakage from the automation repo"
+          ],
+          "automation_approach": "Playwright with TypeScript, Page Object Model, credentials read from environment variables, tagged @smoke and @regression.",
+          "assumptions": [
+            "Test accounts are pre-provisioned and active"
+          ],
+          "open_questions": [
+            "Is MFA enabled in any test environment?",
+            "What message is shown for invalid credentials?"
+          ]
+        }
+      }
+    },
+    {
+      "delay": 0.6,
+      "stage": "testplan",
+      "state": "active",
+      "title": "Exploring the app and drafting one test case"
+    },
+    {
+      "delay": 2.2,
+      "stage": "testplan",
+      "state": "done",
+      "title": "TC-LOGIN-001 drafted and validated",
+      "detail": {
+        "validator_errors": []
+      },
+      "results": {
+        "test_plan": {
+          "test_case_id": "TC-LOGIN-001",
+          "title": "Verify successful login to SauceDemo",
+          "priority": "P0",
+          "test_type": "UI",
+          "test_level": "Functional",
+          "suites": [
+            "Smoke",
+            "Regression"
+          ],
+          "preconditions": [
+            "User is on the SauceDemo login page (https://www.saucedemo.com/)"
+          ],
+          "steps": [
+            {
+              "step_number": 1,
+              "action": "Enter valid username in the username input field",
+              "expected_result": "The username input field displays 'standard_user'"
+            },
+            {
+              "step_number": 2,
+              "action": "Enter valid password in the password input field",
+              "expected_result": "The password input field displays 'secret_sauce'"
+            },
+            {
+              "step_number": 3,
+              "action": "Click the Login button",
+              "expected_result": "The Login button is clicked and the application transitions to the Products page"
+            },
+            {
+              "step_number": 4,
+              "action": "Verify the Products page is displayed",
+              "expected_result": "The Products page is visible with the product inventory grid and 'Add to cart' buttons"
+            }
+          ],
+          "expected_result": "The user is successfully logged in and redirected to the Products page",
+          "automation": true
+        }
+      }
+    }
+  ]
+}
